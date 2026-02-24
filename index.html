@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Geo Intelligence</title>
+<title>OSINT Platform · Geo Intelligence</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link rel="stylesheet" href="css/main.css">
 </head>
@@ -12,7 +12,7 @@
 
   <!-- TOPBAR -->
   <header id="topbar">
-    <div class="logo">Geo<span>·Intelligence</span></div>
+    <div class="logo">OSINT<span>·GEO</span></div>
     <nav class="nav-tabs">
       <button class="nav-tab active" data-view="map" onclick="App.setView('map')"><span class="dot"></span>CARTE</button>
       <button class="nav-tab" data-view="osint" onclick="App.setView('osint')"><span class="dot"></span>OUTILS OSINT</button>
@@ -21,19 +21,18 @@
     </nav>
     <div class="topbar-right">
       <span class="badge badge-live" id="live-badge">⬤ LIVE</span>
-      <span class="badge badge-api" id="api-badge">API OK</span>
+      <span class="badge badge-api" id="api-badge">API</span>
       <button class="icon-btn" onclick="App.openExport()" title="Exporter">⬇</button>
-      <button class="icon-btn" onclick="App.purgeCache()" title="Vider cache">🗑</button>
+      <button class="icon-btn" onclick="App.refreshAll()" title="Actualiser tout">↻</button>
     </div>
   </header>
 
   <!-- LEFT SIDEBAR -->
   <aside id="sidebar-left">
     <div class="sb-section">
-      <div class="sb-label">Recherche rapide</div>
       <div class="search-wrap">
         <span class="search-ic">🔍</span>
-        <input id="search-input" class="search-inp" placeholder="IP, domaine, callsign, MMSI..." autocomplete="off">
+        <input id="search-input" class="search-inp" placeholder="IP, domaine, callsign..." autocomplete="off">
         <button class="search-go" onclick="App.quickSearch()">→</button>
       </div>
     </div>
@@ -41,7 +40,11 @@
     <div class="sb-section">
       <div class="sb-label">Statistiques <span class="count" id="total-count">0</span></div>
       <div class="stats-grid">
-        <div class="stat-card"><div class="stat-val blue" id="s-flights">0</div><div class="stat-lbl">✈ Vols</div></div>
+        <div class="stat-card">
+          <div class="stat-val blue" id="s-flights">0</div>
+          <div class="stat-lbl">✈ Vols chargés</div>
+          <div class="stat-sub" id="s-viewport">0 à l'écran</div>
+        </div>
         <div class="stat-card"><div class="stat-val red" id="s-incidents">0</div><div class="stat-lbl">⚠ Incidents</div></div>
         <div class="stat-card"><div class="stat-val cyan" id="s-infra">0</div><div class="stat-lbl">📡 Infra</div></div>
         <div class="stat-card"><div class="stat-val orange" id="s-traffic">0</div><div class="stat-lbl">🛣 Traffic</div></div>
@@ -53,81 +56,39 @@
           <span class="risk-num" id="risk-num">0</span>
         </div>
         <div class="risk-track"><div class="risk-fill" id="risk-fill"></div></div>
-        <div class="risk-scale">
-          <span style="color:#3fb950">Faible</span>
-          <span style="color:#e3b341">Modéré</span>
-          <span style="color:#f78166">Élevé</span>
-          <span style="color:#f85149">Critique</span>
-        </div>
         <div id="risk-info" class="risk-info" style="display:none">
-          <div class="ri-row"><span class="ri-dot" style="background:#3fb950"></span><b>0–25 Faible</b> — Peu d'entités, trafic normal, pas d'incident critique</div>
-          <div class="ri-row"><span class="ri-dot" style="background:#e3b341"></span><b>26–50 Modéré</b> — Incidents mineurs, densité aérienne notable, infra cloud visible</div>
-          <div class="ri-row"><span class="ri-dot" style="background:#f78166"></span><b>51–75 Élevé</b> — Incidents sévères, anomalies corrélées, concentration ASN anormale</div>
-          <div class="ri-row"><span class="ri-dot" style="background:#f85149"></span><b>76–100 Critique</b> — Multiples incidents critiques, exposition géospatiale maximale</div>
-          <div class="ri-formula">Score = (incidents×8 + sévères×15 + infra×0.2 + vols×0.05) / 2.5</div>
+          <div class="ri-row"><span class="ri-dot" style="background:#3fb950"></span><b>0–25 Faible</b> — trafic normal</div>
+          <div class="ri-row"><span class="ri-dot" style="background:#e3b341"></span><b>26–50 Modéré</b> — incidents mineurs</div>
+          <div class="ri-row"><span class="ri-dot" style="background:#f78166"></span><b>51–75 Élevé</b> — anomalies corrélées</div>
+          <div class="ri-row"><span class="ri-dot" style="background:#f85149"></span><b>76–100 Critique</b> — incidents multiples</div>
         </div>
       </div>
     </div>
 
     <div class="sb-section">
-      <div class="sb-label">Couches carte</div>
-      <div class="layer-row" onclick="App.toggleLayer('aviation')">
-        <div class="layer-toggle on" id="lt-aviation"></div>
-        <span class="layer-ic">✈</span>
-        <div class="layer-info"><div class="layer-name">Trafic aérien</div><div class="layer-sub">OpenSky Network</div></div>
-      </div>
-      <div class="layer-row" onclick="App.toggleLayer('incidents')">
-        <div class="layer-toggle on" id="lt-incidents"></div>
-        <span class="layer-ic">⚠</span>
-        <div class="layer-info"><div class="layer-name">Incidents géo</div><div class="layer-sub">GDACS / open data</div></div>
-      </div>
-      <div class="layer-row" onclick="App.toggleLayer('infra')">
-        <div class="layer-toggle on" id="lt-infra"></div>
-        <span class="layer-ic">📡</span>
-        <div class="layer-info"><div class="layer-name">Infrastructure cyber</div><div class="layer-sub">ASN / datacenters</div></div>
-      </div>
-      <div class="layer-row" onclick="App.toggleLayer('traffic')">
-        <div class="layer-toggle" id="lt-traffic"></div>
-        <span class="layer-ic">🛣</span>
-        <div class="layer-info"><div class="layer-name">Incidents routiers</div><div class="layer-sub">OSM Overpass</div></div>
-      </div>
-      <div class="layer-row" onclick="App.toggleLayer('heatmap')">
-        <div class="layer-toggle" id="lt-heatmap"></div>
-        <span class="layer-ic">🔥</span>
-        <div class="layer-info"><div class="layer-name">Heatmap densité</div><div class="layer-sub">Visualisation</div></div>
-      </div>
+      <div class="sb-label">Couches</div>
+      <div class="layer-row" onclick="App.toggleLayer('aviation')"><div class="layer-toggle on" id="lt-aviation"></div><span class="layer-ic">✈</span><div class="layer-info"><div class="layer-name">Trafic aérien</div><div class="layer-sub">OpenSky · Global</div></div></div>
+      <div class="layer-row" onclick="App.toggleLayer('incidents')"><div class="layer-toggle on" id="lt-incidents"></div><span class="layer-ic">⚠</span><div class="layer-info"><div class="layer-name">Incidents géo</div><div class="layer-sub">GDACS · 30 zones</div></div></div>
+      <div class="layer-row" onclick="App.toggleLayer('infra')"><div class="layer-toggle on" id="lt-infra"></div><span class="layer-ic">📡</span><div class="layer-info"><div class="layer-name">Infrastructure</div><div class="layer-sub">ASN · Datacenters</div></div></div>
+      <div class="layer-row" onclick="App.toggleLayer('traffic')"><div class="layer-toggle" id="lt-traffic"></div><span class="layer-ic">🛣</span><div class="layer-info"><div class="layer-name">Trafic routier</div><div class="layer-sub">OSM · 80+ villes</div></div></div>
+      <div class="layer-row" onclick="App.toggleLayer('heatmap')"><div class="layer-toggle" id="lt-heatmap"></div><span class="layer-ic">🔥</span><div class="layer-info"><div class="layer-name">Heatmap densité</div></div></div>
     </div>
 
     <div class="sb-section">
       <div class="sb-label">Filtres vols</div>
-      <div class="filter-row">
-        <label class="filter-lbl">Alt min <span id="alt-val">0 ft</span></label>
-        <input type="range" class="frange" id="alt-filter" min="0" max="45000" value="0" oninput="App.setFilter('alt',this.value)">
-      </div>
-      <div class="filter-row">
-        <label class="filter-lbl">Vitesse min <span id="spd-val">0 kts</span></label>
-        <input type="range" class="frange" id="spd-filter" min="0" max="600" value="0" oninput="App.setFilter('spd',this.value)">
-      </div>
-      <div class="filter-row">
-        <label class="filter-lbl">Max affichés</label>
-        <select class="fselect" id="max-flights" onchange="App.setMaxFlights(this.value)">
-          <option value="50">50 avions</option>
-          <option value="100" selected>100 avions</option>
-          <option value="200">200 avions</option>
-          <option value="500">500 avions</option>
-        </select>
-      </div>
-      <div id="tracking-row" class="tracking-row" style="display:none">
-        <div class="track-indicator">🎯 Suivi actif : <strong id="track-name">—</strong></div>
-        <button class="track-stop-btn" onclick="Aviation.stopTracking()">✕ Arrêter</button>
-      </div>
+      <div class="filter-row"><label class="filter-lbl">Alt min <span id="alt-val">0 ft</span></label><input type="range" class="frange" min="0" max="45000" value="0" oninput="App.setFilter('alt',this.value)"></div>
+      <div class="filter-row"><label class="filter-lbl">Vitesse min <span id="spd-val">0 kts</span></label><input type="range" class="frange" min="0" max="600" value="0" oninput="App.setFilter('spd',this.value)"></div>
     </div>
+
+    <!-- Multi-tracking panel -->
+    <div id="tracked-panel" class="sb-section" style="display:none"></div>
   </aside>
 
-  <!-- MAP VIEW -->
+  <!-- MAIN AREA -->
   <main id="main-area">
-    <!-- MAP -->
-    <div id="view-map" class="view active">
+
+    <!-- MAP VIEW -->
+    <div id="view-map" class="view" style="display:block">
       <div id="map"></div>
       <div class="map-tr">
         <button class="map-btn" onclick="MapCtrl.resetView()">🌍 Reset</button>
@@ -144,355 +105,132 @@
     </div>
 
     <!-- OSINT TOOLS VIEW -->
-    <div id="view-osint" class="view" style="display:none">
+    <div id="view-osint" class="view" style="display:none;flex-direction:column">
       <div class="osint-layout">
-        <!-- Tool categories left -->
+        <!-- Categories -->
         <div class="osint-cats">
           <div class="cat-title">Catégories</div>
           <button class="cat-btn active" data-cat="network" onclick="App.setCat('network')">🌐 Réseau & IP</button>
           <button class="cat-btn" data-cat="domain" onclick="App.setCat('domain')">🔗 Domaines & DNS</button>
           <button class="cat-btn" data-cat="tls" onclick="App.setCat('tls')">🔐 TLS & Certs</button>
           <button class="cat-btn" data-cat="threat" onclick="App.setCat('threat')">☣ Threat Intel</button>
-          <button class="cat-btn" data-cat="image" onclick="App.setCat('image')">🖼 Images</button>
+          <button class="cat-btn" data-cat="image" onclick="App.setCat('image')">🖼 Images & Médias</button>
           <button class="cat-btn" data-cat="social" onclick="App.setCat('social')">👤 OSINT Social</button>
           <button class="cat-btn" data-cat="geo" onclick="App.setCat('geo')">📍 Géolocalisation</button>
-          <button class="cat-btn" data-cat="breach" onclick="App.setCat('breach')"> 📂 Breaches & Dark</button>
+          <button class="cat-btn" data-cat="breach" onclick="App.setCat('breach')">💀 Breaches</button>
           <button class="cat-btn" data-cat="crypto" onclick="App.setCat('crypto')">₿ Crypto</button>
           <button class="cat-btn" data-cat="misc" onclick="App.setCat('misc')">🛠 Utilitaires</button>
         </div>
 
         <!-- Tool panel -->
-        <div class="osint-panel">
+        <div class="osint-panel" id="osint-panel">
 
-          <!-- NETWORK & IP -->
+          <!-- NETWORK -->
           <div class="tool-cat" id="cat-network">
             <div class="tool-cat-title">🌐 Réseau & IP</div>
             <div class="tools-grid">
-
-              <div class="tool-card">
-                <div class="tool-name">IP Geolocation</div>
-                <div class="tool-desc">Géolocalise une IP, ASN, organisation, timezone</div>
-                <input class="tool-inp" id="ip-geo-input" placeholder="8.8.8.8">
-                <button class="tool-btn" onclick="OsintTools.ipGeo()">Analyser</button>
-                <div class="tool-result" id="ip-geo-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Shodan InternetDB</div>
-                <div class="tool-desc">Ports ouverts, CVEs, tags Shodan (sans clé API)</div>
-                <input class="tool-inp" id="shodan-input" placeholder="8.8.8.8">
-                <button class="tool-btn" onclick="OsintTools.shodanDB()">Scanner</button>
-                <div class="tool-result" id="shodan-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">ASN Lookup</div>
-                <div class="tool-desc">Infos sur un ASN : plages IP, organisation, pays</div>
-                <input class="tool-inp" id="asn-input" placeholder="AS15169 ou 8.8.8.8">
-                <button class="tool-btn" onclick="OsintTools.asnLookup()">Rechercher</button>
-                <div class="tool-result" id="asn-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">BGP / Routing</div>
-                <div class="tool-desc">Infos BGP, préfixes, peers via bgpview.io</div>
-                <input class="tool-inp" id="bgp-input" placeholder="AS15169 ou 8.8.0.0/24">
-                <button class="tool-btn" onclick="OsintTools.bgpLookup()">Rechercher</button>
-                <div class="tool-result" id="bgp-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Port Scanner (Shodan)</div>
-                <div class="tool-desc">Services détectés sur une IP via InternetDB</div>
-                <input class="tool-inp" id="portscan-input" placeholder="1.1.1.1">
-                <button class="tool-btn" onclick="OsintTools.portInfo()">Voir ports</button>
-                <div class="tool-result" id="portscan-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Outils externes IP</div>
-                <div class="tool-desc">Ouvrir dans les outils spécialisés</div>
-                <input class="tool-inp" id="ext-ip-input" placeholder="IP ou domaine">
-                <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.virustotal.com/gui/search/'+document.getElementById('ext-ip-input').value)">VirusTotal</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.abuseipdb.com/check/'+document.getElementById('ext-ip-input').value)">AbuseIPDB</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://threatintelligenceplatform.com/host-reputation?host='+document.getElementById('ext-ip-input').value)">TIP</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://bgp.he.net/ip/'+document.getElementById('ext-ip-input').value)">HE BGP</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://ipinfo.io/'+document.getElementById('ext-ip-input').value)">IPInfo</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.robtex.com/ip-lookup/'+document.getElementById('ext-ip-input').value)">Robtex</button>
-                </div>
-              </div>
+              <div class="tool-card"><div class="tool-name">IP Geolocation</div><div class="tool-desc">Géoloc, ASN, org, timezone via ipapi.co</div><input class="tool-inp" id="ip-geo-input" placeholder="8.8.8.8"><button class="tool-btn" onclick="OsintTools.ipGeo()">Analyser</button><div class="tool-result" id="ip-geo-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Shodan InternetDB</div><div class="tool-desc">Ports ouverts, CVEs, hostnames</div><input class="tool-inp" id="shodan-input" placeholder="1.1.1.1"><button class="tool-btn" onclick="OsintTools.shodanDB()">Scanner</button><div class="tool-result" id="shodan-result"></div></div>
+              <div class="tool-card"><div class="tool-name">ASN Lookup</div><div class="tool-desc">Organisation, pays, RIR via bgpview.io</div><input class="tool-inp" id="asn-input" placeholder="AS15169 ou numéro"><button class="tool-btn" onclick="OsintTools.asnLookup()">Rechercher</button><div class="tool-result" id="asn-result"></div></div>
+              <div class="tool-card"><div class="tool-name">BGP Préfixes</div><div class="tool-desc">Plages IP annoncées par un ASN</div><input class="tool-inp" id="bgp-input" placeholder="AS15169"><button class="tool-btn" onclick="OsintTools.bgpLookup()">Voir préfixes</button><div class="tool-result" id="bgp-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Ports & Services</div><div class="tool-desc">Services détectés via Shodan InternetDB</div><input class="tool-inp" id="portscan-input" placeholder="1.1.1.1"><button class="tool-btn" onclick="OsintTools.portInfo()">Voir ports</button><div class="tool-result" id="portscan-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Calculatrice réseau</div><div class="tool-desc">CIDR, masque, plage, broadcast</div><input class="tool-inp" id="netcalc-input" placeholder="192.168.1.0/24"><button class="tool-btn" onclick="OsintTools.networkCalc()">Calculer</button><div class="tool-result" id="netcalc-result"></div></div>
             </div>
           </div>
 
-          <!-- DOMAIN & DNS -->
+          <!-- DOMAIN -->
           <div class="tool-cat" id="cat-domain" style="display:none">
             <div class="tool-cat-title">🔗 Domaines & DNS</div>
             <div class="tools-grid">
-
-              <div class="tool-card">
-                <div class="tool-name">DNS Lookup complet</div>
-                <div class="tool-desc">A, AAAA, MX, NS, TXT, SOA via DNS over HTTPS</div>
-                <input class="tool-inp" id="dns-input" placeholder="exemple.com">
-                <div class="type-select-row">
-                  <button class="type-sel active" data-dtype="A" onclick="App.selDnsType(this)">A</button>
-                  <button class="type-sel" data-dtype="AAAA" onclick="App.selDnsType(this)">AAAA</button>
-                  <button class="type-sel" data-dtype="MX" onclick="App.selDnsType(this)">MX</button>
-                  <button class="type-sel" data-dtype="NS" onclick="App.selDnsType(this)">NS</button>
-                  <button class="type-sel" data-dtype="TXT" onclick="App.selDnsType(this)">TXT</button>
-                  <button class="type-sel" data-dtype="SOA" onclick="App.selDnsType(this)">SOA</button>
-                  <button class="type-sel" data-dtype="CNAME" onclick="App.selDnsType(this)">CNAME</button>
-                </div>
-                <button class="tool-btn" onclick="OsintTools.dnsLookup()">Résoudre</button>
-                <div class="tool-result" id="dns-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">WHOIS / Registrar</div>
-                <div class="tool-desc">Registrant, dates, nameservers via rdap.org</div>
-                <input class="tool-inp" id="whois-input" placeholder="exemple.com">
-                <button class="tool-btn" onclick="OsintTools.whoisLookup()">WHOIS</button>
-                <div class="tool-result" id="whois-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Reverse DNS</div>
-                <div class="tool-desc">PTR record — IP → hostname</div>
-                <input class="tool-inp" id="rdns-input" placeholder="8.8.8.8">
-                <button class="tool-btn" onclick="OsintTools.reverseDns()">Résoudre PTR</button>
-                <div class="tool-result" id="rdns-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Subdomain Enum</div>
-                <div class="tool-desc">Découverte sous-domaines via crt.sh</div>
-                <input class="tool-inp" id="subdomain-input" placeholder="exemple.com">
-                <button class="tool-btn" onclick="OsintTools.subdomainEnum()">Énumérer</button>
-                <div class="tool-result" id="subdomain-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Outils domaine externes</div>
-                <div class="tool-desc">Accès rapide aux outils spécialisés</div>
-                <input class="tool-inp" id="ext-domain-input" placeholder="exemple.com">
-                <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.virustotal.com/gui/domain/'+document.getElementById('ext-domain-input').value)">VirusTotal</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://dnsdumpster.com/')">DNSdumpster</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://securitytrails.com/domain/'+document.getElementById('ext-domain-input').value+'/dns')">SecurityTrails</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://mxtoolbox.com/SuperTool.aspx?action=mx%3a'+document.getElementById('ext-domain-input').value)">MXToolbox</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://web.archive.org/web/*/'+document.getElementById('ext-domain-input').value)">Wayback</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.shodan.io/search?query=hostname%3A'+document.getElementById('ext-domain-input').value)">Shodan</button>
-                </div>
-              </div>
+              <div class="tool-card"><div class="tool-name">DNS Lookup</div><div class="tool-desc">Requête DNS via Google DoH (A/AAAA/MX/NS/TXT/SOA/CNAME)</div><input class="tool-inp" id="dns-input" placeholder="exemple.com"><div class="type-select-row"><button class="type-sel active" data-dtype="A" onclick="App.selDnsType(this)">A</button><button class="type-sel" data-dtype="AAAA" onclick="App.selDnsType(this)">AAAA</button><button class="type-sel" data-dtype="MX" onclick="App.selDnsType(this)">MX</button><button class="type-sel" data-dtype="NS" onclick="App.selDnsType(this)">NS</button><button class="type-sel" data-dtype="TXT" onclick="App.selDnsType(this)">TXT</button><button class="type-sel" data-dtype="SOA" onclick="App.selDnsType(this)">SOA</button><button class="type-sel" data-dtype="CNAME" onclick="App.selDnsType(this)">CNAME</button></div><button class="tool-btn" onclick="OsintTools.dnsLookup()">Résoudre</button><div class="tool-result" id="dns-result"></div></div>
+              <div class="tool-card"><div class="tool-name">WHOIS / RDAP</div><div class="tool-desc">Registrant, dates, nameservers</div><input class="tool-inp" id="whois-input" placeholder="exemple.com"><button class="tool-btn" onclick="OsintTools.whoisLookup()">WHOIS</button><div class="tool-result" id="whois-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Reverse DNS (PTR)</div><div class="tool-desc">IP → hostname</div><input class="tool-inp" id="rdns-input" placeholder="8.8.8.8"><button class="tool-btn" onclick="OsintTools.reverseDns()">Résoudre PTR</button><div class="tool-result" id="rdns-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Subdomain Enumeration</div><div class="tool-desc">Tous les sous-domaines via crt.sh CT logs</div><input class="tool-inp" id="subdomain-input" placeholder="exemple.com"><button class="tool-btn" onclick="OsintTools.subdomainEnum()">Énumérer</button><div class="tool-result" id="subdomain-result"></div></div>
             </div>
           </div>
 
-          <!-- TLS & CERTS -->
+          <!-- TLS -->
           <div class="tool-cat" id="cat-tls" style="display:none">
             <div class="tool-cat-title">🔐 TLS & Certificats</div>
             <div class="tools-grid">
-
-              <div class="tool-card">
-                <div class="tool-name">Certificate Transparency</div>
-                <div class="tool-desc">Tous les certificats émis pour un domaine via crt.sh</div>
-                <input class="tool-inp" id="crt-input" placeholder="%.exemple.com">
-                <button class="tool-btn" onclick="OsintTools.certSearch()">Rechercher</button>
-                <div class="tool-result" id="crt-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">TLS Info</div>
-                <div class="tool-desc">Détails certificat, validité, CA, SAN</div>
-                <input class="tool-inp" id="tls-input" placeholder="exemple.com">
-                <button class="tool-btn" onclick="OsintTools.tlsInfo()">Analyser TLS</button>
-                <div class="tool-result" id="tls-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Outils TLS externes</div>
-                <div class="tool-desc">Tests SSL/TLS avancés</div>
-                <input class="tool-inp" id="ext-tls-input" placeholder="exemple.com">
-                <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.ssllabs.com/ssltest/analyze.html?d='+document.getElementById('ext-tls-input').value)">SSL Labs</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://crt.sh/?q='+document.getElementById('ext-tls-input').value)">crt.sh</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://tls.imirhil.fr/https/'+document.getElementById('ext-tls-input').value)">cryptcheck</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://sslshopper.com/ssl-checker.html#hostname='+document.getElementById('ext-tls-input').value)">SSL Shopper</button>
-                </div>
-              </div>
+              <div class="tool-card"><div class="tool-name">Certificate Transparency</div><div class="tool-desc">Tous les certificats via crt.sh (CT logs)</div><input class="tool-inp" id="crt-input" placeholder="%.exemple.com"><button class="tool-btn" onclick="OsintTools.certSearch()">Rechercher</button><div class="tool-result" id="crt-result"></div></div>
+              <div class="tool-card"><div class="tool-name">TLS / SSL Info</div><div class="tool-desc">Validité, CA, jours restants</div><input class="tool-inp" id="tls-input" placeholder="exemple.com"><button class="tool-btn" onclick="OsintTools.tlsInfo()">Analyser</button><div class="tool-result" id="tls-result"></div></div>
             </div>
           </div>
 
-          <!-- THREAT INTEL -->
+          <!-- THREAT -->
           <div class="tool-cat" id="cat-threat" style="display:none">
             <div class="tool-cat-title">☣ Threat Intelligence</div>
             <div class="tools-grid">
-
-              <div class="tool-card">
-                <div class="tool-name">AbuseIPDB Check</div>
-                <div class="tool-desc">Vérifie si une IP est signalée malveillante</div>
-                <input class="tool-inp" id="abuse-input" placeholder="1.2.3.4">
-                <button class="tool-btn" onclick="OsintTools.abuseCheck()">Vérifier</button>
-                <div class="tool-result" id="abuse-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">VirusTotal Hash</div>
-                <div class="tool-desc">Recherche un hash MD5/SHA1/SHA256</div>
-                <input class="tool-inp" id="hash-input" placeholder="MD5 / SHA1 / SHA256">
-                <button class="tool-btn" onclick="OsintTools.vtHash()">Analyser</button>
-                <div class="tool-result" id="hash-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">URLScan.io</div>
-                <div class="tool-desc">Scan une URL, capture screenshot, analyse DOM</div>
-                <input class="tool-inp" id="urlscan-input" placeholder="https://exemple.com">
-                <button class="tool-btn" onclick="OsintTools.urlscanSearch()">Rechercher</button>
-                <div class="tool-result" id="urlscan-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Threat Intel externes</div>
-                <div class="tool-desc">Plateformes de threat intelligence</div>
-                <input class="tool-inp" id="ext-threat-input" placeholder="IP / domaine / hash">
+              <div class="tool-card"><div class="tool-name">URLScan.io</div><div class="tool-desc">Scans passés, screenshots, scores</div><input class="tool-inp" id="urlscan-input" placeholder="exemple.com ou https://..."><button class="tool-btn" onclick="OsintTools.urlscanSearch()">Rechercher</button><div class="tool-result" id="urlscan-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Liens externes Threat Intel</div><div class="tool-desc">Ouvrir dans les outils intégrés</div><input class="tool-inp" id="ext-threat-input" placeholder="IP / domaine / hash">
                 <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.virustotal.com/gui/search/'+document.getElementById('ext-threat-input').value)">VirusTotal</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://otx.alienvault.com/indicator/ip/'+document.getElementById('ext-threat-input').value)">AlienVault OTX</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://threatfox.abuse.ch/browse.php?search=ioc%3A'+document.getElementById('ext-threat-input').value)">ThreatFox</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://urlhaus.abuse.ch/browse.php?search='+document.getElementById('ext-threat-input').value)">URLhaus</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://pulsedive.com/indicator/?ioc='+document.getElementById('ext-threat-input').value)">Pulsedive</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.hybrid-analysis.com/search?query='+document.getElementById('ext-threat-input').value)">Hybrid Analysis</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://bazaar.abuse.ch/browse.php?search=sha256_hash%3A'+document.getElementById('ext-threat-input').value)">MalwareBazaar</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://www.virustotal.com/gui/search/'+document.getElementById('ext-threat-input').value,'VirusTotal')">VirusTotal</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://www.abuseipdb.com/check/'+document.getElementById('ext-threat-input').value,'AbuseIPDB')">AbuseIPDB</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://otx.alienvault.com/indicator/ip/'+document.getElementById('ext-threat-input').value,'AlienVault OTX')">OTX</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://threatfox.abuse.ch/browse.php?search=ioc%3A'+document.getElementById('ext-threat-input').value,'ThreatFox')">ThreatFox</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://pulsedive.com/indicator/?ioc='+document.getElementById('ext-threat-input').value,'Pulsedive')">Pulsedive</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://bazaar.abuse.ch/browse.php?search=sha256_hash%3A'+document.getElementById('ext-threat-input').value,'MalwareBazaar')">MalwareBazaar</button>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- IMAGE OSINT -->
+          <!-- IMAGE -->
           <div class="tool-cat" id="cat-image" style="display:none">
             <div class="tool-cat-title">🖼 OSINT Image & Médias</div>
             <div class="tools-grid">
-
-              <div class="tool-card">
-                <div class="tool-name">Recherche image inversée</div>
-                <div class="tool-desc">Ouvrir une URL d'image dans les moteurs de recherche inversée</div>
-                <input class="tool-inp" id="imgrev-input" placeholder="https://exemple.com/photo.jpg">
+              <div class="tool-card"><div class="tool-name">Recherche image inversée</div><div class="tool-desc">Chercher l'origine d'une image par URL</div><input class="tool-inp" id="imgrev-input" placeholder="https://exemple.com/photo.jpg"><div class="ext-btns"><button class="ext-btn" onclick="OsintTools.reverseImage('google')">Google Lens</button><button class="ext-btn" onclick="OsintTools.reverseImage('yandex')">Yandex</button><button class="ext-btn" onclick="OsintTools.reverseImage('tineye')">TinEye</button><button class="ext-btn" onclick="OsintTools.reverseImage('bing')">Bing Visual</button></div><div class="tool-result" id="imgrev-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Extraction EXIF</div><div class="tool-desc">Métadonnées EXIF locales (GPS, appareil, date) — aucun upload</div><input type="file" class="tool-file" id="exif-file" accept="image/*"><button class="tool-btn" onclick="OsintTools.extractExif()">Extraire EXIF</button><div class="tool-result" id="exif-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Détection IA / Deepfake</div><div class="tool-desc">Outils intégrés de détection</div>
                 <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.reverseImage('google')">Google Images</button>
-                  <button class="ext-btn" onclick="OsintTools.reverseImage('yandex')">Yandex</button>
-                  <button class="ext-btn" onclick="OsintTools.reverseImage('tineye')">TinEye</button>
-                  <button class="ext-btn" onclick="OsintTools.reverseImage('bing')">Bing Visual</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://www.fotoforensics.com/','FotoForensics')">FotoForensics</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://29a.ch/photo-forensics/','Photo Forensics')">29a.ch</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://illuminarty.ai/','Illuminarty AI')">Illuminarty</button>
                 </div>
               </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Extraction EXIF</div>
-                <div class="tool-desc">Lit les métadonnées EXIF d'une image (GPS, appareil, date)</div>
-                <input type="file" class="tool-file" id="exif-file" accept="image/*">
-                <button class="tool-btn" onclick="OsintTools.extractExif()">Extraire EXIF</button>
-                <div class="tool-result" id="exif-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Analyse URL image</div>
-                <div class="tool-desc">Vérifie si une image a été signalée via VirusTotal</div>
-                <input class="tool-inp" id="imgvt-input" placeholder="https://exemple.com/img.jpg">
-                <button class="tool-btn" onclick="OsintTools.openExternal('https://www.virustotal.com/gui/search/'+document.getElementById('imgvt-input').value)">Vérifier VT</button>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Détection IA / Deepfake</div>
-                <div class="tool-desc">Outils de détection d'images générées par IA</div>
+              <div class="tool-card"><div class="tool-name">Géoloc image</div><div class="tool-desc">Identifier le lieu d'une photo</div>
                 <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.hivemoderation.com/deepfake-detection')">Hive Moderation</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://illuminarty.ai/')">Illuminarty</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.fotoforensics.com/')">FotoForensics</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://29a.ch/photo-forensics/')">Photo Forensics</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://exposed.ai/')">Exposed.ai</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://geospy.ai/','GeoSpy AI')">GeoSpy AI</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://picarta.ai/','Picarta')">Picarta</button>
                 </div>
               </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Géolocalisation image</div>
-                <div class="tool-desc">Outils pour localiser le lieu d'une photo</div>
+              <div class="tool-card"><div class="tool-name">Recherche visage / KYC</div><div class="tool-desc">Attention — usage légal uniquement</div>
                 <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://geospy.ai/')">GeoSpy AI</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.geoguessr.com/')">GeoGuessr</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://groundedai.company/products/geospy')">Grounded AI</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://picarta.ai/')">Picarta</button>
-                </div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Recherche vidéo / KYC</div>
-                <div class="tool-desc">Vérification d'identité et recherche vidéo inverse</div>
-                <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.invid-project.eu/tools-and-services/invid-verification-plugin/')">InVID</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://findclone.ru/')">FindClone</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://pimeyes.com/')">PimEyes</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.facecheck.id/')">FaceCheck</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://pimeyes.com/','PimEyes')">PimEyes</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://www.facecheck.id/','FaceCheck')">FaceCheck</button>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- SOCIAL OSINT -->
+          <!-- SOCIAL -->
           <div class="tool-cat" id="cat-social" style="display:none">
-            <div class="tool-cat-title">👤 OSINT Réseaux sociaux & Identité</div>
+            <div class="tool-cat-title">👤 OSINT Social & Identité</div>
             <div class="tools-grid">
-
-              <div class="tool-card">
-                <div class="tool-name">Username Search</div>
-                <div class="tool-desc">Trouve un username sur +300 réseaux sociaux</div>
-                <input class="tool-inp" id="username-input" placeholder="john_doe">
+              <div class="tool-card"><div class="tool-name">Username Search</div><div class="tool-desc">Username sur +300 plateformes</div><input class="tool-inp" id="username-input" placeholder="john_doe">
                 <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://whatsmyname.app/?q='+document.getElementById('username-input').value)">WhatsMyName</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://sherlock-project.github.io/?username='+document.getElementById('username-input').value)">Sherlock</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://namechk.com/')">Namechk</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://usersearch.org/search/'+document.getElementById('username-input').value)">UserSearch</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.social-searcher.com/social-mention/?q='+document.getElementById('username-input').value)">Social Searcher</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://whatsmyname.app/?q='+document.getElementById('username-input').value,'WhatsMyName')">WhatsMyName</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://usersearch.org/search/'+document.getElementById('username-input').value,'UserSearch')">UserSearch</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://www.social-searcher.com/social-mention/?q='+document.getElementById('username-input').value,'Social Searcher')">Social Searcher</button>
                 </div>
               </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Email OSINT</div>
-                <div class="tool-desc">Vérifie et enrichit une adresse email</div>
-                <input class="tool-inp" id="email-input" placeholder="user@exemple.com">
-                <button class="tool-btn" onclick="OsintTools.emailOsint()">Analyser</button>
-                <div class="tool-result" id="email-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">GitHub OSINT</div>
-                <div class="tool-desc">Profil, repos, organisations, emails exposés</div>
-                <input class="tool-inp" id="github-input" placeholder="username">
-                <button class="tool-btn" onclick="OsintTools.githubOsint()">Rechercher</button>
-                <div class="tool-result" id="github-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Moteurs recherche avancés</div>
-                <div class="tool-desc">Dorks et recherche avancée</div>
-                <input class="tool-inp" id="dork-input" placeholder='site:linkedin.com "John Doe"'>
+              <div class="tool-card"><div class="tool-name">Email OSINT</div><div class="tool-desc">MX, provider, jetable, sous-domaines</div><input class="tool-inp" id="email-input" placeholder="user@exemple.com"><button class="tool-btn" onclick="OsintTools.emailOsint()">Analyser</button><div class="tool-result" id="email-result"></div></div>
+              <div class="tool-card"><div class="tool-name">GitHub OSINT</div><div class="tool-desc">Profil, repos, emails exposés, orgs</div><input class="tool-inp" id="github-input" placeholder="username"><button class="tool-btn" onclick="OsintTools.githubOsint()">Analyser</button><div class="tool-result" id="github-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Réseaux sociaux directs</div><div class="tool-desc">Accès rapide profils</div><input class="tool-inp" id="soc-direct-input" placeholder="username ou nom">
                 <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.google.com/search?q='+encodeURIComponent(document.getElementById('dork-input').value))">Google</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://search.yahoo.com/search?p='+encodeURIComponent(document.getElementById('dork-input').value))">Yahoo</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.bing.com/search?q='+encodeURIComponent(document.getElementById('dork-input').value))">Bing</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://search.brave.com/search?q='+encodeURIComponent(document.getElementById('dork-input').value))">Brave</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://twitter.com/'+document.getElementById('soc-direct-input').value,'Twitter/X')">Twitter/X</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://www.instagram.com/'+document.getElementById('soc-direct-input').value,'Instagram')">Instagram</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://github.com/'+document.getElementById('soc-direct-input').value,'GitHub')">GitHub</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://www.reddit.com/user/'+document.getElementById('soc-direct-input').value,'Reddit')">Reddit</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://t.me/'+document.getElementById('soc-direct-input').value,'Telegram')">Telegram</button>
                 </div>
               </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Réseaux sociaux directs</div>
-                <div class="tool-desc">Recherche directe sur les plateformes</div>
-                <input class="tool-inp" id="soc-direct-input" placeholder="username ou nom">
+              <div class="tool-card"><div class="tool-name">Google Dorks</div><div class="tool-desc">Recherche avancée</div><input class="tool-inp" id="dork-input" placeholder='site:linkedin.com "John Doe"'>
                 <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://twitter.com/search?q='+document.getElementById('soc-direct-input').value)">Twitter/X</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.linkedin.com/search/results/all/?keywords='+document.getElementById('soc-direct-input').value)">LinkedIn</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.instagram.com/'+document.getElementById('soc-direct-input').value)">Instagram</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://github.com/'+document.getElementById('soc-direct-input').value)">GitHub</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://t.me/'+document.getElementById('soc-direct-input').value)">Telegram</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.reddit.com/user/'+document.getElementById('soc-direct-input').value)">Reddit</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://www.google.com/search?q='+encodeURIComponent(document.getElementById('dork-input').value),'Google')">Google</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://www.bing.com/search?q='+encodeURIComponent(document.getElementById('dork-input').value),'Bing')">Bing</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://search.brave.com/search?q='+encodeURIComponent(document.getElementById('dork-input').value),'Brave')">Brave</button>
                 </div>
               </div>
             </div>
@@ -500,83 +238,32 @@
 
           <!-- GEO -->
           <div class="tool-cat" id="cat-geo" style="display:none">
-            <div class="tool-cat-title">📍 Géolocalisation & Maps</div>
+            <div class="tool-cat-title">📍 Géolocalisation</div>
             <div class="tools-grid">
-
-              <div class="tool-card">
-                <div class="tool-name">Geocoding / Reverse</div>
-                <div class="tool-desc">Adresse → coordonnées ou coordonnées → adresse (Nominatim)</div>
-                <input class="tool-inp" id="geocode-input" placeholder="Paris, France ou 48.8566,2.3522">
-                <button class="tool-btn" onclick="OsintTools.geocode()">Geocoder</button>
-                <div class="tool-result" id="geocode-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Analyse coordonnées GPS</div>
-                <div class="tool-desc">Convertit, analyse et affiche des coordonnées GPS</div>
-                <input class="tool-inp" id="gps-input" placeholder="48.8566, 2.3522">
-                <button class="tool-btn" onclick="OsintTools.gpsAnalyze()">Analyser</button>
-                <div class="tool-result" id="gps-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Outils géo externes</div>
-                <div class="tool-desc">Visualisation et analyse géospatiale</div>
-                <input class="tool-inp" id="ext-geo-input" placeholder="48.8566,2.3522">
+              <div class="tool-card"><div class="tool-name">Geocoding / Reverse</div><div class="tool-desc">Adresse ↔ coordonnées (Nominatim)</div><input class="tool-inp" id="geocode-input" placeholder="Paris, France ou 48.85,2.35"><button class="tool-btn" onclick="OsintTools.geocode()">Geocoder</button><div class="tool-result" id="geocode-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Analyse coordonnées GPS</div><div class="tool-desc">Décimal → DMS, hémisphère</div><input class="tool-inp" id="gps-input" placeholder="48.8566, 2.3522"><button class="tool-btn" onclick="OsintTools.gpsAnalyze()">Analyser</button><div class="tool-result" id="gps-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Météo temps réel</div><div class="tool-desc">Conditions actuelles via Open-Meteo (sans clé)</div><input class="tool-inp" id="weather-input" placeholder="Paris ou 48.85,2.35"><button class="tool-btn" onclick="OsintTools.weatherCheck()">Météo</button><div class="tool-result" id="weather-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Maps intégrés</div><div class="tool-desc">Visualisation directe</div><input class="tool-inp" id="ext-geo-input" placeholder="48.8566,2.3522">
                 <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://maps.google.com/?q='+document.getElementById('ext-geo-input').value)">Google Maps</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.openstreetmap.org/search?query='+document.getElementById('ext-geo-input').value)">OpenStreetMap</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.bing.com/maps?q='+document.getElementById('ext-geo-input').value)">Bing Maps</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://satellites.pro/#'+document.getElementById('ext-geo-input').value)">Satellites.pro</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+document.getElementById('ext-geo-input').value)">Street View</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://zoom.earth/#view='+document.getElementById('ext-geo-input').value)">Zoom Earth</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://www.openstreetmap.org/search?query='+document.getElementById('ext-geo-input').value,'OpenStreetMap')">OSM</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://satellites.pro/#'+document.getElementById('ext-geo-input').value,'Satellites.pro')">Satellite</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://zoom.earth/#view='+document.getElementById('ext-geo-input').value,'Zoom Earth')">Zoom Earth</button>
                 </div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Météo & Risques naturels</div>
-                <div class="tool-desc">Conditions météo via Open-Meteo</div>
-                <input class="tool-inp" id="weather-input" placeholder="Paris ou 48.85,2.35">
-                <button class="tool-btn" onclick="OsintTools.weatherCheck()">Météo</button>
-                <div class="tool-result" id="weather-result"></div>
               </div>
             </div>
           </div>
 
           <!-- BREACH -->
           <div class="tool-cat" id="cat-breach" style="display:none">
-            <div class="tool-cat-title">Breaches & Dark W</div>
+            <div class="tool-cat-title">💀 Breaches & Dark Web</div>
             <div class="tools-grid">
-
-              <div class="tool-card">
-                <div class="tool-name">HaveIBeenPwned</div>
-                <div class="tool-desc">Vérifie si un email est dans des fuites (API publique)</div>
-                <input class="tool-inp" id="hibp-input" placeholder="user@exemple.com">
-                <button class="tool-btn" onclick="OsintTools.hibpCheck()">Vérifier</button>
-                <div class="tool-result" id="hibp-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Intelligence fuites & Dark</div>
-                <div class="tool-desc">Recherche dans les bases de fuites publiques</div>
-                <input class="tool-inp" id="breach-input" placeholder="email / domaine / username">
+              <div class="tool-card"><div class="tool-name">HaveIBeenPwned</div><div class="tool-desc">Vérification fuites email</div><input class="tool-inp" id="hibp-input" placeholder="user@exemple.com"><button class="tool-btn" onclick="OsintTools.hibpCheck()">Vérifier</button><div class="tool-result" id="hibp-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Breach databases</div><div class="tool-desc">Accès direct aux bases de fuites</div><input class="tool-inp" id="breach-input" placeholder="email / domaine / username">
                 <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://haveibeenpwned.com/account/'+document.getElementById('breach-input').value)">HIBP</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://intelx.io/?s='+document.getElementById('breach-input').value)">IntelX</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://dehashed.com/search?query='+document.getElementById('breach-input').value)">DeHashed</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://breachdirectory.org/')">BreachDirectory</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://leakcheck.io/search/'+document.getElementById('breach-input').value)">LeakCheck</button>
-                </div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Paste Sites</div>
-                <div class="tool-desc">Recherche sur Pastebin, GitHub Gist, etc.</div>
-                <input class="tool-inp" id="paste-input" placeholder="email / IP / keyword">
-                <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://pastebin.com/search?q='+document.getElementById('paste-input').value)">Pastebin</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://gist.github.com/search?q='+document.getElementById('paste-input').value)">GitHub Gist</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://psbdmp.ws/search/'+document.getElementById('paste-input').value)">Pastebin Dump</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://intelx.io/?s='+document.getElementById('breach-input').value,'Intel X')">IntelX</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://dehashed.com/search?query='+document.getElementById('breach-input').value,'DeHashed')">DeHashed</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://leakcheck.io/search/'+document.getElementById('breach-input').value,'LeakCheck')">LeakCheck</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://pastebin.com/search?q='+document.getElementById('breach-input').value,'Pastebin')">Pastebin</button>
                 </div>
               </div>
             </div>
@@ -586,24 +273,12 @@
           <div class="tool-cat" id="cat-crypto" style="display:none">
             <div class="tool-cat-title">₿ Crypto & Blockchain</div>
             <div class="tools-grid">
-
-              <div class="tool-card">
-                <div class="tool-name">Bitcoin Address</div>
-                <div class="tool-desc">Transactions, balance, historique d'une adresse BTC</div>
-                <input class="tool-inp" id="btc-input" placeholder="1A1zP1eP5QGefi2DMPTfTL5SLmv7Divf...">
-                <button class="tool-btn" onclick="OsintTools.btcLookup()">Analyser</button>
-                <div class="tool-result" id="btc-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Blockchain explorers</div>
-                <div class="tool-desc">Explorer les blockchains publiques</div>
-                <input class="tool-inp" id="crypto-addr-input" placeholder="Adresse / TX hash">
+              <div class="tool-card"><div class="tool-name">Bitcoin Address</div><div class="tool-desc">Balance, transactions, historique</div><input class="tool-inp" id="btc-input" placeholder="1A1zP1..."><button class="tool-btn" onclick="OsintTools.btcLookup()">Analyser</button><div class="tool-result" id="btc-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Blockchain explorers</div><div class="tool-desc">Explorateurs intégrés</div><input class="tool-inp" id="crypto-addr-input" placeholder="Adresse / TX hash">
                 <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.blockchain.com/explorer/search?search='+document.getElementById('crypto-addr-input').value)">Blockchain.com</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://blockchair.com/search?q='+document.getElementById('crypto-addr-input').value)">Blockchair</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://etherscan.io/search?f=1&q='+document.getElementById('crypto-addr-input').value)">Etherscan</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://tronscan.org/#/search/'+document.getElementById('crypto-addr-input').value)">TronScan</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://blockchair.com/search?q='+document.getElementById('crypto-addr-input').value,'Blockchair')">Blockchair</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://etherscan.io/search?f=1&q='+document.getElementById('crypto-addr-input').value,'Etherscan')">Etherscan</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://tronscan.org/#/search/'+document.getElementById('crypto-addr-input').value,'TronScan')">TronScan</button>
                 </div>
               </div>
             </div>
@@ -611,71 +286,25 @@
 
           <!-- MISC -->
           <div class="tool-cat" id="cat-misc" style="display:none">
-            <div class="tool-cat-title">🛠 Utilitaires OSINT</div>
+            <div class="tool-cat-title">🛠 Utilitaires</div>
             <div class="tools-grid">
-
-              <div class="tool-card">
-                <div class="tool-name">Wayback Machine</div>
-                <div class="tool-desc">Archive d'un site web à une date passée</div>
-                <input class="tool-inp" id="wayback-input" placeholder="https://exemple.com">
-                <button class="tool-btn" onclick="OsintTools.waybackCheck()">Vérifier archives</button>
-                <div class="tool-result" id="wayback-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">User-Agent Decoder</div>
-                <div class="tool-desc">Décode et analyse un User-Agent string</div>
-                <input class="tool-inp" id="ua-input" placeholder="Mozilla/5.0 (Windows...)" style="font-size:10px">
-                <button class="tool-btn" onclick="OsintTools.decodeUA()">Décoder</button>
-                <div class="tool-result" id="ua-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Décodage Hash</div>
-                <div class="tool-desc">Identifie le type d'un hash et tente le cracking</div>
-                <input class="tool-inp" id="hashid-input" placeholder="5d41402abc4b2a76b9719d911017c592">
-                <button class="tool-btn" onclick="OsintTools.hashIdentify()">Identifier</button>
-                <div class="tool-result" id="hashid-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Encode / Decode</div>
-                <div class="tool-desc">Base64, URL, HTML entities, hex</div>
-                <input class="tool-inp" id="encode-input" placeholder="Texte à encoder/décoder">
-                <div class="type-select-row">
-                  <button class="type-sel active" data-enc="b64e" onclick="App.selEnc(this)">B64 enc</button>
-                  <button class="type-sel" data-enc="b64d" onclick="App.selEnc(this)">B64 dec</button>
-                  <button class="type-sel" data-enc="urle" onclick="App.selEnc(this)">URL enc</button>
-                  <button class="type-sel" data-enc="urld" onclick="App.selEnc(this)">URL dec</button>
-                  <button class="type-sel" data-enc="hex" onclick="App.selEnc(this)">→ Hex</button>
-                </div>
-                <button class="tool-btn" onclick="OsintTools.encodeConvert()">Convertir</button>
-                <div class="tool-result" id="encode-result"></div>
-              </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Recherche universelle</div>
-                <div class="tool-desc">Méta-moteurs OSINT et agrégateurs</div>
-                <input class="tool-inp" id="meta-input" placeholder="Terme de recherche">
+              <div class="tool-card"><div class="tool-name">Wayback Machine</div><div class="tool-desc">Dernière archive d'un site</div><input class="tool-inp" id="wayback-input" placeholder="https://exemple.com"><button class="tool-btn" onclick="OsintTools.waybackCheck()">Vérifier</button><div class="tool-result" id="wayback-result"></div></div>
+              <div class="tool-card"><div class="tool-name">User-Agent Decoder</div><div class="tool-desc">OS, navigateur, mobile, bot</div><input class="tool-inp" id="ua-input" placeholder="Mozilla/5.0..." style="font-size:9px"><button class="tool-btn" onclick="OsintTools.decodeUA()">Décoder</button><div class="tool-result" id="ua-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Hash Identifier</div><div class="tool-desc">Détecte le type de hash</div><input class="tool-inp" id="hashid-input" placeholder="MD5/SHA1/SHA256..."><button class="tool-btn" onclick="OsintTools.hashIdentify()">Identifier</button><div class="tool-result" id="hashid-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Encode / Decode</div><div class="tool-desc">Base64, URL, Hex</div><input class="tool-inp" id="encode-input" placeholder="Texte"><div class="type-select-row"><button class="type-sel active" data-enc="b64e" onclick="App.selEnc(this)">B64↑</button><button class="type-sel" data-enc="b64d" onclick="App.selEnc(this)">B64↓</button><button class="type-sel" data-enc="urle" onclick="App.selEnc(this)">URL↑</button><button class="type-sel" data-enc="urld" onclick="App.selEnc(this)">URL↓</button><button class="type-sel" data-enc="hex" onclick="App.selEnc(this)">→Hex</button><button class="type-sel" data-enc="unhex" onclick="App.selEnc(this)">Hex→</button></div><button class="tool-btn" onclick="OsintTools.encodeConvert()">Convertir</button><div class="tool-result" id="encode-result"></div></div>
+              <div class="tool-card"><div class="tool-name">Méta-recherche</div><div class="tool-desc">Agrégateurs OSINT</div><input class="tool-inp" id="meta-input" placeholder="Terme de recherche">
                 <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://osint.sh/search/?q='+document.getElementById('meta-input').value)">OSINT.sh</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://search.carrot2.org/#/search/web/'+encodeURIComponent(document.getElementById('meta-input').value))">Carrot2</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.startpage.com/search?query='+encodeURIComponent(document.getElementById('meta-input').value))">Startpage</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://archive.org/search?query='+encodeURIComponent(document.getElementById('meta-input').value))">Archive.org</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://grep.app/search?q='+encodeURIComponent(document.getElementById('meta-input').value))">grep.app</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://publicwww.com/websites/'+encodeURIComponent(document.getElementById('meta-input').value))">PublicWWW</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://osint.sh/search/?q='+document.getElementById('meta-input').value,'OSINT.sh')">OSINT.sh</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://grep.app/search?q='+encodeURIComponent(document.getElementById('meta-input').value),'grep.app')">grep.app</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://archive.org/search?query='+encodeURIComponent(document.getElementById('meta-input').value),'Archive.org')">Archive.org</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://publicwww.com/websites/'+encodeURIComponent(document.getElementById('meta-input').value),'PublicWWW')">PublicWWW</button>
                 </div>
               </div>
-
-              <div class="tool-card">
-                <div class="tool-name">Aviation OSINT</div>
-                <div class="tool-desc">Recherche immatriculation, callsign, appareil</div>
-                <input class="tool-inp" id="avi-osint-input" placeholder="F-GKXY / BAW123 / A320">
+              <div class="tool-card"><div class="tool-name">Aviation OSINT</div><div class="tool-desc">Immatriculation, callsign, historique</div><input class="tool-inp" id="avi-osint-input" placeholder="F-GKXY / BAW123">
                 <div class="ext-btns">
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.flightradar24.com/'+document.getElementById('avi-osint-input').value)">FlightRadar24</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.airframes.org/reg/'+document.getElementById('avi-osint-input').value)">Airframes</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://www.planespotters.net/search?q='+document.getElementById('avi-osint-input').value)">PlaneSpotters</button>
-                  <button class="ext-btn" onclick="OsintTools.openExternal('https://opensky-network.org/aircraft-database?ident='+document.getElementById('avi-osint-input').value)">OpenSky DB</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://www.flightradar24.com/'+document.getElementById('avi-osint-input').value,'FlightRadar24')">FR24</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://www.airframes.org/reg/'+document.getElementById('avi-osint-input').value,'Airframes')">Airframes</button>
+                  <button class="ext-btn" onclick="OsintTools.openInPanel('https://www.planespotters.net/search?q='+document.getElementById('avi-osint-input').value,'PlaneSpotters')">PlaneSpotters</button>
                 </div>
               </div>
             </div>
@@ -683,13 +312,10 @@
 
         </div>
 
-        <!-- Results panel right -->
+        <!-- OSINT Log panel -->
         <div class="osint-results">
-          <div class="orpanel-title">📋 Résultats de session</div>
-          <div class="or-toolbar">
-            <button class="or-btn" onclick="App.clearOsintLog()">Vider</button>
-            <button class="or-btn" onclick="App.exportOsintLog()">Exporter</button>
-          </div>
+          <div class="orpanel-title">📋 Résultats</div>
+          <div class="or-toolbar"><button class="or-btn" onclick="App.clearOsintLog()">Vider</button><button class="or-btn" onclick="App.exportOsintLog()">Exporter</button></div>
           <div id="osint-log"></div>
         </div>
       </div>
@@ -700,22 +326,20 @@
       <div class="graph-toolbar">
         <button class="map-btn" id="graph-phys-btn" onclick="GraphViz.togglePhysics()">⚛ Physics ON</button>
         <button class="map-btn" onclick="GraphViz.reset()">⊕ Reset</button>
-        <span style="font-family:var(--mono);font-size:10px;color:var(--text2);padding:0 10px">
-          <span id="graph-nodes">0</span> nœuds · <span id="graph-links">0</span> liens · Drag + Clic
-        </span>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text2);padding:0 10px"><span id="graph-nodes">0</span> nœuds · <span id="graph-links">0</span> liens</span>
       </div>
       <canvas id="graph-canvas"></canvas>
     </div>
 
     <!-- TABLE VIEW -->
-    <div id="view-table" class="view" style="display:none">
+    <div id="view-table" class="view" style="display:none;flex-direction:column">
       <div class="tbl-toolbar">
         <div class="tbl-filters">
-          <button class="tbl-f active" data-type="all" onclick="TableViz.setFilter('all',this)">Tout</button>
-          <button class="tbl-f" data-type="flight" onclick="TableViz.setFilter('flight',this)">✈ Vols</button>
-          <button class="tbl-f" data-type="incident" onclick="TableViz.setFilter('incident',this)">⚠ Incidents</button>
-          <button class="tbl-f" data-type="infra" onclick="TableViz.setFilter('infra',this)">📡 Infra</button>
-          <button class="tbl-f" data-type="traffic" onclick="TableViz.setFilter('traffic',this)">🛣 Traffic</button>
+          <button class="tbl-f active" onclick="TableViz.setFilter('all',this)">Tout</button>
+          <button class="tbl-f" onclick="TableViz.setFilter('flight',this)">✈ Vols</button>
+          <button class="tbl-f" onclick="TableViz.setFilter('incident',this)">⚠ Incidents</button>
+          <button class="tbl-f" onclick="TableViz.setFilter('infra',this)">📡 Infra</button>
+          <button class="tbl-f" onclick="TableViz.setFilter('traffic',this)">🛣 Traffic</button>
         </div>
         <input class="tbl-search" placeholder="Filtrer..." oninput="TableViz.setSearch(this.value)">
         <span class="tbl-count" id="tbl-count">0 entités</span>
@@ -723,43 +347,54 @@
       <div id="tbl-scroll">
         <table id="main-tbl">
           <thead><tr>
-            <th onclick="TableViz.sort('id')">ID</th>
-            <th onclick="TableViz.sort('type')">TYPE</th>
-            <th onclick="TableViz.sort('name')">NOM</th>
-            <th onclick="TableViz.sort('lat')">LAT</th>
-            <th onclick="TableViz.sort('lng')">LNG</th>
-            <th>DÉTAILS</th>
-            <th onclick="TableViz.sort('ts')">HEURE</th>
+            <th onclick="TableViz.sort('id')">ID</th><th onclick="TableViz.sort('type')">TYPE</th>
+            <th>NOM</th><th onclick="TableViz.sort('lat')">LAT</th><th onclick="TableViz.sort('lng')">LNG</th>
+            <th>DÉTAILS</th><th onclick="TableViz.sort('ts')">HEURE</th>
           </tr></thead>
           <tbody id="tbl-body"></tbody>
         </table>
       </div>
     </div>
 
-    <!-- Detail Panel (shared) -->
+    <!-- Detail Panel -->
     <div id="detail-panel">
       <button class="dp-close" onclick="App.closeDetail()">✕</button>
       <div class="dp-title" id="dp-title">—</div>
       <div class="dp-grid" id="dp-grid"></div>
       <div id="dp-actions"></div>
     </div>
+
+    <!-- Embedded iframe panel for OSINT tools -->
+    <div id="osint-iframe-panel" style="display:none">
+      <div class="iframe-header">
+        <span id="osint-iframe-title">—</span>
+        <div class="iframe-actions">
+          <button class="iframe-btn" onclick="OsintTools.closePanel()">✕ Fermer</button>
+        </div>
+      </div>
+      <div class="iframe-notice">⚠ Certains sites bloquent l'intégration (X-Frame-Options). <a id="iframe-external-link" href="#" target="_blank" rel="noopener">Ouvrir dans un onglet →</a></div>
+      <iframe id="osint-iframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" title="OSINT Tool"></iframe>
+    </div>
+
   </main>
 
-  <!-- RIGHT SIDEBAR (entity feed) -->
+  <!-- RIGHT SIDEBAR -->
   <aside id="sidebar-right">
-    <div class="sb-section"><div class="sb-label">Flux entités <span class="loading-pulse" id="feed-pulse"></span></div></div>
+    <div class="sb-section"><div class="sb-label">Flux <span class="loading-pulse" id="feed-pulse"></span></div></div>
     <div id="entity-feed"></div>
   </aside>
 
   <!-- TIMELINE -->
   <footer id="timeline">
     <div class="tl-ctrl">
-      <button class="tl-btn" onclick="Timeline.step(-3600)">⏮</button>
+      <button class="tl-btn" onclick="Timeline.step(-3600)" title="-1h">⏮</button>
       <button class="tl-btn" id="tl-play" onclick="Timeline.togglePlay()">▶</button>
-      <button class="tl-btn" onclick="Timeline.step(3600)">⏭</button>
+      <button class="tl-btn" onclick="Timeline.step(3600)" title="+1h">⏭</button>
     </div>
     <input type="range" id="tl-slider" min="0" max="86400" value="43200" oninput="Timeline.update(this.value)">
+    <div class="tl-date" id="tl-date" style="font-family:var(--mono);font-size:9px;color:var(--text3);white-space:nowrap;padding:0 4px"></div>
     <div class="tl-time" id="tl-time">--:--:-- UTC</div>
+    <button class="tl-btn" id="tl-live-btn" onclick="this.classList.toggle('active')" title="Temps réel" style="font-size:9px;padding:0 8px;width:auto">LIVE</button>
     <div class="tl-speed" onclick="Timeline.cycleSpeed()">×<span id="tl-speed-val">1</span></div>
     <div class="tl-info">Màj: <span id="last-upd">—</span></div>
   </footer>
@@ -770,8 +405,9 @@
   <div class="modal-box">
     <div class="modal-title">⬇ Export données</div>
     <div class="export-opts">
-      <div class="export-opt" onclick="App.exportJSON()"><span>{ }</span><div><b>JSON</b><br><small>Toutes les entités</small></div></div>
-      <div class="export-opt" onclick="App.exportCSV()"><span>📊</span><div><b>CSV</b><br><small>Compatible Excel</small></div></div>
+      <div class="export-opt" onclick="App.exportJSON()"><span>{ }</span><div><b>JSON</b><br><small>Toutes les entités + tracking</small></div></div>
+      <div class="export-opt" onclick="App.exportCSV()"><span>📊</span><div><b>CSV</b><br><small>Compatible Excel/QGIS</small></div></div>
+      <div class="export-opt" onclick="App.exportKML()"><span>🌍</span><div><b>KML</b><br><small>Google Earth / QGIS</small></div></div>
     </div>
     <button class="modal-cancel" onclick="App.closeExport()">Annuler</button>
   </div>
@@ -779,9 +415,9 @@
 
 <div id="notif-container"></div>
 <div id="disclaimer">
-  <button onclick="this.parentElement.style.display='none'" style="float:right;background:none;border:none;color:var(--text3);cursor:pointer">✕</button>
-  <strong>⚠ Outils Public et légal.</strong>
-  Données publiques exclusivement. Aucun scan actif. RGPD safe.
+  <button onclick="this.parentElement.style.display='none'" style="float:right;background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px">✕</button>
+  <strong>⚠ OSINT DÉFENSIF UNIQUEMENT</strong>
+  Données publiques exclusivement. Aucun scan actif. Usage légal uniquement.
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -790,8 +426,6 @@
 <script src="js/map.js"></script>
 <script src="js/layers/aviation.js"></script>
 <script src="js/layers/incidents.js"></script>
-<script src="js/layers/infra.js"></script>
-<script src="js/layers/traffic.js"></script>
 <script src="js/viz/graph.js"></script>
 <script src="js/viz/table.js"></script>
 <script src="js/osint/tools.js"></script>
